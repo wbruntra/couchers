@@ -508,6 +508,10 @@ def testconfig():
     config["VERSION"] = "testing_version"
     config["BASE_URL"] = "http://localhost:3000"
     config["COOKIE_DOMAIN"] = "localhost"
+
+    config["ENABLE_SMS"] = False
+    config["SMS_SENDER_ID"] = "invalid"
+
     config["ENABLE_EMAIL"] = False
     config["NOTIFICATION_EMAIL_ADDRESS"] = "notify@couchers.org.invalid"
     config["REPORTS_EMAIL_RECIPIENT"] = "reports@couchers.org.invalid"

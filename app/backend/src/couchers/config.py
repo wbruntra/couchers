@@ -24,6 +24,9 @@ CONFIG_OPTIONS = [
     ("DATABASE_CONNECTION_STRING", str),
     # Whether to try adding dummy data
     ("ADD_DUMMY_DATA", bool),
+    # SMS
+    ("ENABLE_SMS", bool),
+    ("SMS_SENDER_ID", str),
     # Email
     ("ENABLE_EMAIL", bool),
     # Sender email, e.g. "notify@couchers.org"
@@ -106,5 +109,7 @@ def check_config():
             raise Exception("Production site must be over HTTPS")
         if not config["ENABLE_EMAIL"]:
             raise Exception("Production site must have email enabled")
+        if not config["ENABLE_SMS"]:
+            raise Exception("Production site must have SMS enabled")
         if config["IN_TEST"]:
             raise Exception("IN_TEST while not DEV")
