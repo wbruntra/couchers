@@ -1,9 +1,12 @@
+import datetime as dt
+
+import matplotlib.dates as mdates
+import matplotlib.pyplot as plt
 import pandas as pd
 from sqlalchemy import create_engine
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.orm.session import Session
 from tqdm.notebook import tqdm
-import datetime as dt
 
 from couchers.config import config
 from couchers.db import session_scope
@@ -23,16 +26,20 @@ def create_session():
 
 
 def get_table_columns(table):
-    with session_scope() as session:
-        query = session.query(table).limit(0)
-        df = pd.read_sql(query.statement, query.session.bind)
-        return list(df.columns)
+    session = create_session()
+    query = session.query(table).limit(0)
+    df = pd.read_sql(query.statement, query.session.bind)
+    result = list(df.columns)
+    session.close()
+    return result
 
 
 def get_dataframe(table):
-    with session_scope() as session:
-        query = session.query(table)
-        return pd.read_sql(query.statement, query.session.bind)
+    session = create_session()
+    query = session.query(table)
+    result = pd.read_sql(query.statement, query.session.bind)
+    session.close()
+    return result
 
 
 def update_community_description(node_id, description, overide_length_constraint=False):
@@ -217,7 +224,58 @@ def users_per_day_plot(average_over_days=7):
     )
 
 
-def users_over_time_plot():
+def users_over_time_plot(frequency_sample_days=2):
     df = get_dataframe(User)
-    df = df.sort_values("joined").reset_index(drop=True).reset_index()
-    return df.plot("joined", "index", logy=True).grid()
+    df = (
+        df[["joined"]]
+        .sort_values("joined")
+        .reset_index(drop=True)
+        .reset_index(drop=False)
+        .rename({"index": "cumulative_users"}, axis=1)
+        .set_index("joined")
+        .resample(f"{frequency_sample_days}d")
+        .first()
+        .fillna(method="ffill")
+        .reset_index(drop=False)
+    )
+
+    orange = "#D97823"
+    teal = "#1FA698"
+    font = "Ubuntu"
+    tickcolor = "#6a6a6a"
+    background_color = "#dfe6e6"
+
+    fig, ax = plt.subplots(figsize=(16, 9), facecolor=background_color)
+    ax.set_facecolor(background_color)
+
+    plt.ylim((0, df.cumulative_users.max() * 1.05))
+    plt.xlim((df.joined.min(), df.joined.max()))
+
+    ax.plot(df.joined, df.cumulative_users, color=orange, linewidth=4)
+    ax.fill_between(df.joined, df.cumulative_users, 0, color=orange, alpha=0.4)
+
+    ax.spines["right"].set_visible(False)
+    ax.spines["top"].set_visible(False)
+    ax.spines["left"].set_color(teal)
+    ax.spines["left"].set_linewidth(2)
+    ax.spines["bottom"].set_color(teal)
+    ax.spines["bottom"].set_linewidth(2)
+
+    ax.xaxis.set_major_locator(mdates.MonthLocator(interval=2))
+    ax.xaxis.set_major_formatter(mdates.DateFormatter("%b"))
+    ax.yaxis.set_major_locator(plt.MaxNLocator(1))
+
+    plt.yticks(fontsize=20, color=tickcolor, fontweight=0)
+    plt.xticks(fontsize=20, color=tickcolor)
+    ax.tick_params(colors=tickcolor, which="both")
+
+    plt.grid(color=teal, linewidth=0.5, linestyle=(0, (5, 10)), axis="x")
+    plt.title(
+        "Userbase growth on Couchers.org",
+        fontname=font,
+        color=orange,
+        fontsize=40,
+        pad=50,
+        fontweight=500,
+    )
+    return plt.show()
