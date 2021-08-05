@@ -10,14 +10,8 @@ from tqdm.notebook import tqdm
 
 from couchers.config import config
 from couchers.db import session_scope
-from couchers.models import (
-    Cluster,
-    ClusterRole,
-    ClusterSubscription,
-    Discussion,
-    Node,
-    User,
-)
+from couchers.models import (Cluster, ClusterRole, ClusterSubscription,
+                             Discussion, Node, User)
 
 
 def create_session():
@@ -94,7 +88,11 @@ def new_admin(community_node_id, username):
                 )
                 .one()
             )
-            community_subscription.role = ClusterRole.admin
+            if community_subscription.role == ClusterRole.admin:
+                print(f"{username} is ALREADY AN ADMIN of {cluster.name}")
+                return
+            else:
+                community_subscription.role = ClusterRole.admin
 
         # else create new subscription
         except NoResultFound:
