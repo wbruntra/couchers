@@ -222,7 +222,7 @@ def users_per_day_plot(average_over_days=7):
     )
 
 
-def users_over_time_plot(frequency_sample_days=2):
+def users_over_time_plot(frequency_sample_days=2, title=True):
     df = get_dataframe(User)
     df = (
         df[["joined"]]
@@ -268,12 +268,14 @@ def users_over_time_plot(frequency_sample_days=2):
     ax.tick_params(colors=tickcolor, which="both")
 
     plt.grid(color=teal, linewidth=0.5, linestyle=(0, (5, 10)), axis="x")
-    plt.title(
-        "Userbase growth on Couchers.org",
-        fontname=font,
-        color=orange,
-        fontsize=40,
-        pad=50,
-        fontweight=500,
-    )
+    if title:
+        plt.title(
+            "Userbase growth on Couchers.org",
+            fontname=font,
+            color=orange,
+            fontsize=40,
+            pad=50,
+            fontweight=500,
+        )
+    plt.savefig('userbase_growth.png', bbox_inches='tight')
     return plt.show()
