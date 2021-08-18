@@ -1,8 +1,10 @@
 import datetime as dt
+import json
 
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 import pandas as pd
+from shapely.geometry import shape
 from sqlalchemy import create_engine
 from sqlalchemy.orm.exc import NoResultFound
 from sqlalchemy.orm.session import Session
@@ -11,7 +13,9 @@ from tqdm.notebook import tqdm
 from couchers.config import config
 from couchers.db import session_scope
 from couchers.models import (Cluster, ClusterRole, ClusterSubscription,
-                             Discussion, Node, User)
+                             Discussion, Node, Page, PageType, PageVersion,
+                             Thread, User)
+from couchers.utils import create_coordinate, to_multi
 
 
 def create_session():
@@ -134,6 +138,63 @@ def remove_admin(community_node_id, username):
         )
 
 
+def create_community(
+    session,
+    geojson,
+    lat,
+    lng,
+    name,
+    cluster_description,
+    main_page_title,
+    main_page_content,
+    admin_usernames,
+    parent_node_id,
+):
+    admins = [
+        session.query(User).filter(User.username == username).one()
+        for username in admin_usernames
+    ]
+    geom = shape(json.loads(geojson)["features"][0]["geometry"])
+    node = Node(
+        geom=to_multi(geom.wkb),
+        parent_node_id=parent_node_id,
+    )
+    session.add(node)
+    cluster = Cluster(
+        name=name,
+        description=cluster_description,
+        parent_node=node,
+        is_official_cluster=True,
+    )
+    session.add(cluster)
+    main_page = Page(
+        parent_node=cluster.parent_node,
+        creator_user=admins[0],
+        owner_cluster=cluster,
+        type=PageType.main_page,
+        thread=Thread(),
+    )
+    session.add(main_page)
+    page_version = PageVersion(
+        page=main_page,
+        editor_user=admins[0],
+        title=main_page_title,
+        content=main_page_content,
+        geom=create_coordinate(lat, lng),
+        address=name,
+    )
+    session.add(page_version)
+    for admin in admins:
+        cluster.cluster_subscriptions.append(
+            ClusterSubscription(
+                user=admin,
+                role=ClusterRole.admin,
+            )
+        )
+    session.flush()
+    return node
+
+
 def get_incomplete_communities_df():
     with session_scope() as session:
         print("getting communities...")
@@ -222,7 +283,7 @@ def users_per_day_plot(average_over_days=7):
     )
 
 
-def users_over_time_plot(frequency_sample_days=2, title=True):
+def users_growth_plot(frequency_sample_days=2, title=True):
     df = get_dataframe(User)
     df = (
         df[["joined"]]
@@ -277,5 +338,5 @@ def users_over_time_plot(frequency_sample_days=2, title=True):
             pad=50,
             fontweight=500,
         )
-    plt.savefig('userbase_growth.png', bbox_inches='tight')
+    plt.savefig("userbase_growth.png", bbox_inches="tight")
     return plt.show()
