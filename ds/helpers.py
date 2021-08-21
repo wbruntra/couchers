@@ -269,7 +269,7 @@ def users_per_day_plot(average_over_days=7):
         .reset_index()
         .set_index("joined")
     )
-    print(f"Average new users per day over the last {average_over_days} days")
+    print()
     return (
         df.apply(
             lambda row: df[
@@ -278,12 +278,16 @@ def users_per_day_plot(average_over_days=7):
             / average_over_days,
             axis=1,
         )
-        .plot()
+        .plot(
+            title=f"Average new users per day over the last {average_over_days} days",
+            xlabel="date",
+            ylabel="new users per day",
+            )
         .grid()
     )
 
 
-def users_growth_plot(frequency_sample_days=2, title=True):
+def user_growth_plot(frequency_sample_days=2, title=True):
     df = get_dataframe(User)
     df = (
         df[["joined"]]
