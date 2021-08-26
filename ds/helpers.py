@@ -195,6 +195,16 @@ def create_community(
     return node
 
 
+def update_community_name(community_id: int, name: str):
+    with session_scope() as session:
+        node = session.query(Node).filter(Node.id == community_id).one()
+        official_cluster = node.official_cluster
+        old_name = official_cluster.name
+        official_cluster.name = name
+        official_cluster.main_page.versions[-1].title = name
+    print(f"{old_name} community renamed to: {name}")
+
+
 def get_incomplete_communities_df():
     with session_scope() as session:
         print("getting communities...")
@@ -282,7 +292,7 @@ def users_per_day_plot(average_over_days=7):
             title=f"Average new users per day over the last {average_over_days} days",
             xlabel="date",
             ylabel="new users per day",
-            )
+        )
         .grid()
     )
 
