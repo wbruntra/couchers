@@ -3,7 +3,7 @@ import json
 
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
-import pandas as pd
+import pandas as pdc
 from shapely.geometry import shape
 from sqlalchemy import create_engine
 from sqlalchemy.orm.exc import NoResultFound
@@ -13,8 +13,10 @@ from tqdm.notebook import tqdm
 from couchers.config import config
 from couchers.db import session_scope
 from couchers.models import (Cluster, ClusterRole, ClusterSubscription,
-                             Discussion, Node, Page, PageType, PageVersion,
-                             Thread, User, EventOccurrence, EventSubscription, EventOrganizer, EventOccurrenceAttendee)
+                             Discussion, EventOccurrence,
+                             EventOccurrenceAttendee, EventOrganizer,
+                             EventSubscription, Node, Page, PageType,
+                             PageVersion, Thread, User)
 from couchers.utils import create_coordinate, to_multi
 
 
@@ -75,32 +77,47 @@ def delete_discussion(discussion_id):
 
         session.commit()
 
+
 def delete_event(event_id):
 
     with session_scope() as session:
-        event_occurrence = session.query(EventOccurrence).filter(EventOccurrence.id == event_id).one()
+        event_occurrence = (
+            session.query(EventOccurrence).filter(EventOccurrence.id == event_id).one()
+        )
         event = event_occurrence.event
         thread = event.thread
 
         for sub in event.subscribers:
-            sub_entry = session.query(EventSubscription).filter(
-                (EventSubscription.event_id == event.id) 
-                & (EventSubscription.user_id == sub.id)
-            ).one()
+            sub_entry = (
+                session.query(EventSubscription)
+                .filter(
+                    (EventSubscription.event_id == event.id)
+                    & (EventSubscription.user_id == sub.id)
+                )
+                .one()
+            )
             session.delete(sub_entry)
         for org in event.organizers:
-            org_entry = session.query(EventOrganizer).filter(
-                (EventOrganizer.event_id == event.id) 
-                & (EventOrganizer.user_id == sub.id)
-            ).one()
+            org_entry = (
+                session.query(EventOrganizer)
+                .filter(
+                    (EventOrganizer.event_id == event.id)
+                    & (EventOrganizer.user_id == sub.id)
+                )
+                .one()
+            )
             session.delete(org_entry)
         for att in event_occurrence.attendees:
-            att_entry = session.query(EventOccurrenceAttendee).filter(
-                (EventOccurrenceAttendee.occurence_id == event_occurence.id) 
-                & (EventOccurrenceAttendee.user_id == sub.id)
-            ).one()
+            att_entry = (
+                session.query(EventOccurrenceAttendee)
+                .filter(
+                    (EventOccurrenceAttendee.occurence_id == event_occurence.id)
+                    & (EventOccurrenceAttendee.user_id == sub.id)
+                )
+                .one()
+            )
             session.delete(att_entry)
-            
+
         session.delete(thread)
         session.delete(event_occurrence)
         session.delete(event)
