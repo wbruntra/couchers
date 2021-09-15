@@ -293,6 +293,53 @@ def get_incomplete_communities_df():
         ].sort_values("id")
 
 
+def get_community_builder_df():
+    user_columns = ["id", "name", "username", "email"]
+    community_columns = ["id", "name", "slugify_1"]
+
+    sub_df = get_dataframe(ClusterSubscription).rename(
+        {"cluster_id": "community_id"}, axis=1
+    )
+    user_df = get_dataframe(User)[user_columns].rename({"id": "user_id"}, axis=1)
+    community_df = get_dataframe(Cluster)[community_columns].rename(
+        {"id": "community_id", "name": "community_name"}, axis=1
+    )
+
+    admin_df = sub_df[sub_df.role == ClusterRole.admin]
+
+    CB_df = (
+        admin_df.merge(right=user_df, on="user_id")
+        .merge(right=community_df, on="community_id")
+        .sort_values(["user_id", "community_id"])
+        .reset_index(drop=True)
+    )
+
+    CB_df["profile_link"] = CB_df.username.apply(
+        lambda x: f"https://app.couchers.org/user/{x}"
+    )
+    CB_df["community_link"] = CB_df.apply(
+        lambda row: f"https://app.couchers.org/community/{row.community_id-1}/{row.slugify_1}",
+        axis=1,
+    )
+
+    CB_df = CB_df.drop(["id", "user_id", "community_id", "role", "slugify_1"], axis=1)
+
+    return (
+        CB_df.groupby("username")
+        .first()
+        .reset_index()[
+            [
+                "name",
+                "username",
+                "email",
+                "community_name",
+                "profile_link",
+                "community_link",
+            ]
+        ]
+    )
+
+
 def _has_discussions(community_id, discussion_df):
     num_discussions = discussion_df.query(
         f"owner_cluster_id == {str(community_id)}"
