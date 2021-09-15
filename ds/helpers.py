@@ -3,7 +3,7 @@ import json
 
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
-import pandas as pdc
+import pandas as pd
 from shapely.geometry import shape
 from sqlalchemy import create_engine
 from sqlalchemy.orm.exc import NoResultFound
@@ -111,7 +111,7 @@ def delete_event(event_id):
             att_entry = (
                 session.query(EventOccurrenceAttendee)
                 .filter(
-                    (EventOccurrenceAttendee.occurence_id == event_occurence.id)
+                    (EventOccurrenceAttendee.occurence_id == event_occurrence.id)
                     & (EventOccurrenceAttendee.user_id == sub.id)
                 )
                 .one()
@@ -319,30 +319,77 @@ def _has_non_man_admin(community):
     return False
 
 
-def users_per_day_plot(average_over_days=7):
-    df = get_dataframe(User)
+def users_per_day_plot(window_num_days=14, title=True):
+
+    user_df = get_dataframe(User)
     df = (
-        df.sort_values("joined")
-        .reset_index(drop=True)
+        user_df[["joined"]]
+        .sort_values("joined")
         .reset_index()
-        .set_index("joined")
+        .joined.dt.floor("d")
+        .value_counts()
+        .rename_axis("date")
+        .sort_index()
+        .reset_index()
     )
-    print()
-    return (
-        df.apply(
-            lambda row: df[
-                row.name - dt.timedelta(days=average_over_days) : row.name
-            ].shape[0]
-            / average_over_days,
-            axis=1,
-        )
-        .plot(
-            title=f"Average new users per day over the last {average_over_days} days",
-            xlabel="date",
-            ylabel="new users per day",
-        )
-        .grid()
+
+    df[f"last_{window_num_days}_avg"] = df.apply(
+        lambda row: df[
+            (df.date > row.date - dt.timedelta(days=window_num_days))
+            & (df.date <= row.date)
+        ].joined.sum()
+        / window_num_days,
+        axis=1,
     )
+
+    plt.figure(figsize=(16, 9))
+
+    orange = "#D97823"
+    teal = "#1FA698"
+    font = "Ubuntu"
+    tickcolor = "#6a6a6a"
+    background_color = "#dfe6e6"
+
+    fig, ax = plt.subplots(figsize=(16, 9), facecolor=background_color)
+    ax.set_facecolor(background_color)
+
+    plt.ylim((0, df.joined.max() * 1.05))
+    plt.xlim((df.date.min(), df.date.max()))
+
+    plt.bar(df.date, df.joined, color=orange, width=0.5)
+    plt.plot(
+        df.date,
+        df[f"last_{window_num_days}_avg"],
+        color=teal,
+        label=f"last_{window_num_days}_avg",
+    )
+
+    ax.spines["right"].set_visible(False)
+    ax.spines["top"].set_visible(False)
+    ax.spines["left"].set_color(teal)
+    ax.spines["left"].set_linewidth(2)
+    ax.spines["bottom"].set_color(teal)
+    ax.spines["bottom"].set_linewidth(2)
+
+    ax.xaxis.set_major_locator(mdates.MonthLocator(interval=2))
+    ax.xaxis.set_major_formatter(mdates.DateFormatter("%b"))
+
+    plt.yticks(fontsize=20, color=tickcolor, fontweight=0)
+    plt.xticks(fontsize=20, color=tickcolor)
+    ax.tick_params(colors=tickcolor, which="both")
+
+    plt.legend()
+    plt.grid(color=teal, linewidth=0.5, linestyle=(0, (5, 10)), axis="both")
+
+    if title:
+        plt.title(
+            "New users per day",
+            fontname=font,
+            color=orange,
+            fontsize=40,
+            pad=50,
+            fontweight=500,
+        )
 
 
 def user_growth_plot(frequency_sample_days=2, title=True):
