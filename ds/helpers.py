@@ -15,7 +15,7 @@ from couchers.db import session_scope
 from couchers.models import (Cluster, ClusterRole, ClusterSubscription,
                              Discussion, EventOccurrence,
                              EventOccurrenceAttendee, EventOrganizer,
-                             EventSubscription, Node, Page, PageType,
+                             EventSubscription, Invoice, Node, Page, PageType,
                              PageVersion, Thread, User)
 from couchers.utils import create_coordinate, to_multi
 
@@ -496,3 +496,25 @@ def user_growth_plot(frequency_sample_days=2, title=True):
         )
     plt.savefig("userbase_growth.png", bbox_inches="tight")
     return plt.show()
+
+
+def donations_plot(window_num_days=31):
+    invoice_df = get_dataframe(Invoice)
+    invoice_df = invoice_df.sort_values("created")
+    invoice_df["date"] = invoice_df.created.dt.date
+    day_df = invoice_df[["date", "amount"]].groupby("date").sum("amount")
+
+    idx = pd.date_range(day_df.index.min() - dt.timedelta(days=5), day_df.index.max())
+    day_df = day_df.reindex(idx, fill_value=0)
+
+    day_df[f"last_{window_num_days}_avg"] = day_df.apply(
+        lambda row: day_df[
+            row.name - dt.timedelta(days=window_num_days): row.name
+        ].amount.sum()
+        / window_num_days,
+        axis=1,
+    )
+
+    return day_df[f"last_{window_num_days}_avg"].plot(
+        title=f"average donations per day over last {window_num_days} days"
+    )
